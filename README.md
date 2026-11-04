@@ -74,7 +74,13 @@ Udp
                 "name": "SampleString",
                 "id": 0
             }
-        ]
+        ],
+        "capabilities": {
+            "CanPan": true,
+            "CanTilt": true,
+            "CanZoom": true,
+            "CanFocus": true
+        }
     }
 }
 ```
@@ -119,6 +125,7 @@ Udp
 | 11 | R | Number of configured presets |
 | 11 | R | Preset select by number |
 | 12 | R | Preset store by number |
+| 13 | R | Preset recall by raw VISCA preset number |
 | 50 | R | Returns Socket Status when using VISCA-over-IP |
 
 #### Serials
@@ -132,29 +139,40 @@ Udp
 <!-- START Interfaces Implemented -->
 ### Interfaces Implemented
 
+- ISocketStatus
 - ICommunicationMonitor
 - IRoutingSource
 - IHasCameraOff
 - IHasCameraPtzControl
 - IHasCameraFocusControl
+- ICameraCapabilities
 - IHasPowerControlWithFeedback
 - IHasCameraPresets
 <!-- END Interfaces Implemented -->
 <!-- START Base Classes -->
 ### Base Classes
 
-- EssentialsBridgeableDevice
 - JoinMapBaseAdvanced
+- Device
+- EssentialsBridgeableDevice
 <!-- END Base Classes -->
 <!-- START Public Methods -->
 ### Public Methods
 
+- public void Connect()
+- public void Disconnect()
+- public void SendText(string text)
 - public void SendBytes(byte[] bytes)
+- public void SendBytes(byte[] bytes)
+- public void ResetSequenceNumber()
 - public void SendCustomCommand(string cmd)
 - public void InitializeCamera()
 - public void Poll()
 - public void CameraOn()
 - public void CameraOff()
+- public void PowerOn()
+- public void PowerOff()
+- public void PowerToggle()
 - public void PanLeft()
 - public void PanRight()
 - public void PanStop()
@@ -170,9 +188,26 @@ Udp
 - public void TriggerAutoFocus()
 - public void PositionHome()
 - public void PresetSelect(int preset)
+- public void PresetRecallRaw(int preset)
 - public void PresetStore(int preset, string description)
 - public void PrivacyOn()
 - public void PrivacyOff()
+- public void Device_Implements_Interface(string interfaceFullName)
+- public void Device_Has_PowerIsOnFeedback_Property()
+- public void Device_Presets_Property_Is_CameraPreset_List()
+- public void Device_Has_PresetsListHasChanged_Event()
+- public void Config_Class_Exists(string className)
+- public void Config_Has_Parameterless_Constructor(string className)
+- public void Config_Property_Has_JsonPropertyAttribute(string className, string jsonName)
+- public void Assembly_Loads_Successfully()
+- public void Assembly_Name_Matches_Expected()
+- public void Factory_Count_Matches_Expected()
+- public void Factory_Exists_ByName(string factoryName)
+- public void All_Factories_Have_Parameterless_Constructor()
+- public void All_Factories_Inherit_MinimumEssentialsFrameworkVersion_Property()
+- public void All_Factories_Inherit_TypeNames_Property()
+- public void Factory_Registers_Expected_TypeName(string factoryName, string expectedTypeName)
+- public void No_Duplicate_TypeNames_Across_Factories()
 <!-- END Public Methods -->
 <!-- START Bool Feedbacks -->
 ### Bool Feedbacks
@@ -180,6 +215,7 @@ Udp
 - PresetStoredFeedback
 - OnlineFeedback
 - CameraIsOffFeedback
+- PowerIsOnFeedback
 - AutoFocusFeedback
 <!-- END Bool Feedbacks -->
 <!-- START Int Feedbacks -->
