@@ -20,6 +20,8 @@ public class DeviceInterfaceTests
     [InlineData("PepperDash.Essentials.Devices.Common.Cameras.IHasCameraPtzControl")]
     [InlineData("PepperDash.Essentials.Devices.Common.Cameras.IHasCameraFocusControl")]
     [InlineData("PepperDash.Essentials.Core.DeviceInfo.IDeviceInfoProvider")]
+    [InlineData("PepperDash.Essentials.Core.IHasFeedback")]
+    [InlineData("PepperDash.Essentials.Core.ICommunicationMonitor")]
     public void Device_Implements_Interface(string interfaceFullName)
     {
         DeviceInterfaceNames.Should().Contain(interfaceFullName,
@@ -32,6 +34,16 @@ public class DeviceInterfaceTests
         var prop = DeviceType.GetProperty("PowerIsOnFeedback");
         prop.Should().NotBeNull();
         prop!.PropertyType.Name.Should().Be("BoolFeedback");
+    }
+
+    [Fact]
+    public void Device_Feedbacks_Property_Is_FeedbackCollection()
+    {
+        var prop = DeviceType.GetProperty("Feedbacks");
+        prop.Should().NotBeNull();
+        prop!.PropertyType.IsGenericType.Should().BeTrue();
+        prop.PropertyType.GetGenericTypeDefinition().FullName
+            .Should().Be("PepperDash.Essentials.Core.FeedbackCollection`1");
     }
 
     [Fact]

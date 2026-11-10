@@ -10,12 +10,13 @@ using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 using PepperDash.Essentials.Core.DeviceInfo;
 using PepperDash.Essentials.Devices.Common.Cameras;
+using Feedback = PepperDash.Essentials.Core.Feedback;
 
 namespace ViscaCameraPlugin
 {
 	public class ViscaCameraDevice : EssentialsBridgeableDevice, ICommunicationMonitor, IRoutingSource,
 		IHasCameraOff, IHasCameraPtzControl, IHasCameraFocusControl, ICameraCapabilities,
-		IHasPowerControlWithFeedback, IHasCameraPresets, IDeviceInfoProvider
+		IHasPowerControlWithFeedback, IHasCameraPresets, IDeviceInfoProvider, IHasFeedback
 	{
 		/// <summary>
 		/// The camera's address from configuration and the version it reports. One instance for the
@@ -219,6 +220,13 @@ namespace ViscaCameraPlugin
 		public IntFeedback ZoomSpeedFeedback { get; private set; }
 		public IntFeedback FocusSpeedFeedback { get; private set; }
 
+		/// <summary>
+		/// The device's state feedbacks: power, camera off and, for IP control, the socket status.
+		/// Built once in the constructor so a consumer that subscribes to them after activation sees
+		/// the full set. Speeds, presets and the comm monitor status stay off it; the monitor is read
+		/// through <see cref="CommunicationMonitor"/>.
+		/// </summary>
+		public FeedbackCollection<Feedback> Feedbacks { get; private set; }
 
 
 
@@ -306,6 +314,10 @@ namespace ViscaCameraPlugin
 
 			CommunicationMonitor = new GenericCommunicationMonitor(this, _comms, _pollTimeMs, 120000, 300000, Poll);
 
+			// keep the monitor status feedback current whenever the monitor changes, not only when a
+			// bridge comes online
+			CommunicationMonitor.StatusChange += (o, a) => MonitorStatusFeedback.FireUpdate();
+
 			var socket = _comms as ISocketStatus;
 			if (socket != null)
 			{
@@ -322,6 +334,14 @@ namespace ViscaCameraPlugin
 				CommunicationMonitor.Start();
 				InitializeCamera();
 			}
+
+			Feedbacks = new FeedbackCollection<Feedback>
+			{
+				PowerIsOnFeedback,
+				CameraIsOffFeedback
+			};
+			if (SocketStatusFeedback != null)
+				Feedbacks.Add(SocketStatusFeedback);
 
 			Presets = new List<CameraPreset>();
 			PresetNamesFeedbacks = new Dictionary<uint, StringFeedback>();
