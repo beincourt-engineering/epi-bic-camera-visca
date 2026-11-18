@@ -22,7 +22,12 @@ namespace ViscaCameraPlugin
 		/// The camera's address from configuration and the version it reports. One instance for the
 		/// life of the device, so what is written to it is what readers see.
 		/// </summary>
-		public DeviceInfo DeviceInfo { get; } = new DeviceInfo();
+		public DeviceInfo DeviceInfo { get; } = new ViscaCameraDeviceInfo();
+
+		// the camera's web API answered: its firmware name wins over the VISCA ROM codes
+		private volatile bool _webIdentityRead;
+		private int _webIdentityRunning;
+		private string _webAddress;
 
 		public event DeviceInfoChangeHandler DeviceInfoChanged;
 
@@ -293,6 +298,7 @@ namespace ViscaCameraPlugin
 			{
 				DeviceInfo.IpAddress = address;
 				DeviceInfo.HostName = address;
+				_webAddress = address.Trim();
 			}
 
 			if (config.Control.Method.ToString().ToLower() == "udp")
@@ -803,7 +809,7 @@ namespace ViscaCameraPlugin
 				if (ViscaVersionReply.TryParse(byteArray, out var vendor, out var model, out var rom))
 				{
 					var firmware = ViscaVersionReply.Describe(vendor, model, rom);
-					if (firmware != DeviceInfo.FirmwareVersion)
+					if (!_webIdentityRead && firmware != DeviceInfo.FirmwareVersion)
 					{
 						DeviceInfo.FirmwareVersion = firmware;
 						this.LogInformation("Camera reports firmware {firmware}", firmware);
@@ -872,6 +878,45 @@ namespace ViscaCameraPlugin
 		public void UpdateDeviceInfo()
 		{
 			SendBytes(ViscaVersionReply.Inquiry(_address));
+			ReadWebIdentity();
+		}
+
+		/// <summary>
+		/// Reads the camera's model, serial number, firmware and MAC from its web API in the background, once, for a
+		/// camera on the network (ViscaCameraWebInfo). A camera without one keeps what VISCA gives.
+		/// </summary>
+		private void ReadWebIdentity()
+		{
+			if (_webIdentityRead || string.IsNullOrEmpty(_webAddress)) return;
+			if (System.Threading.Interlocked.Exchange(ref _webIdentityRunning, 1) == 1) return;
+
+			System.Threading.Tasks.Task.Run(() =>
+			{
+				try
+				{
+					var info = ViscaCameraWebReader.Read(_webAddress, out var outcome);
+					this.LogInformation("Camera identity: {Outcome}", outcome);
+					if (info == null) return;
+
+					var identity = (ViscaCameraDeviceInfo)DeviceInfo;
+					if (info.Model != null) identity.Model = info.Model;
+					if (info.SerialNumber != null) identity.SerialNumber = info.SerialNumber;
+					if (info.Firmware != null) identity.FirmwareVersion = info.Firmware;
+					if (info.MacAddress != null) identity.MacAddress = info.MacAddress;
+					_webIdentityRead = true;
+					this.LogInformation("Camera {Model}, serial {Serial}, firmware {Firmware}, MAC {Mac}",
+						info.Model, info.SerialNumber, info.Firmware, info.MacAddress);
+					DeviceInfoChanged?.Invoke(this, new DeviceInfoEventArgs(DeviceInfo));
+				}
+				catch (Exception e)
+				{
+					this.LogWarning("Camera identity not read from its web API: {Message}", e.Message);
+				}
+				finally
+				{
+					System.Threading.Interlocked.Exchange(ref _webIdentityRunning, 0);
+				}
+			});
 		}
 
 		public void Poll()
